@@ -43,16 +43,16 @@ export default function Dashboard() {
 
   const countByStage = stage => leads.filter(l => l.stage === stage).length
   const total = leads.length
-  const won = countByStage('won')
-  const lost = countByStage('lost')
-  const active = leads.filter(l => !['won', 'lost'].includes(l.stage)).length
+  const won = countByStage('conclu')
+  const lost = countByStage('non_conclu')
+  const active = leads.filter(l => !['conclu', 'non_conclu', 'acheve'].includes(l.stage)).length
   const winRate = (won + lost) > 0 ? Math.round((won / (won + lost)) * 100) : 0
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Overview of your sales pipeline</p>
+        <h1 className="text-2xl font-bold text-slate-800">Tableau de bord</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Vue d'ensemble du pipeline commercial</p>
       </div>
 
       {loading ? (
@@ -61,28 +61,26 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Leads" value={total} icon={Users}
+            <StatCard label="Total prospects" value={total} icon={Users}
               color="bg-blue-50 text-blue-600" />
-            <StatCard label="Active" value={active} sub="In pipeline" icon={TrendingUp}
+            <StatCard label="En cours" value={active} sub="Dans le pipeline" icon={TrendingUp}
               color="bg-violet-50 text-violet-600" />
-            <StatCard label="Won" value={won} sub={`${winRate}% win rate`} icon={Trophy}
+            <StatCard label="Conclus" value={won} sub={`${winRate}% taux de succès`} icon={Trophy}
               color="bg-emerald-50 text-emerald-600" />
-            <StatCard label="Lost" value={lost} icon={AlertCircle}
+            <StatCard label="Non conclus" value={lost} icon={AlertCircle}
               color="bg-red-50 text-red-600" />
           </div>
 
-          {/* Stage breakdown */}
           <div className="card p-6">
-            <h2 className="font-semibold text-slate-800 mb-5">Pipeline by Stage</h2>
+            <h2 className="font-semibold text-slate-800 mb-5">Répartition par étape</h2>
             <div className="space-y-3">
               {STAGES.map(stage => {
                 const count = countByStage(stage.id)
                 const pct = total > 0 ? Math.round((count / total) * 100) : 0
                 return (
                   <div key={stage.id} className="flex items-center gap-3">
-                    <div className="w-36 flex-shrink-0">
+                    <div className="w-40 flex-shrink-0">
                       <span className={`badge ${stage.color}`}>{stage.label}</span>
                     </div>
                     <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -98,17 +96,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent activity */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-slate-800">Recent Activity</h2>
+              <h2 className="font-semibold text-slate-800">Activité récente</h2>
               <Link to="/pipeline" className="text-xs text-brand-600 font-semibold hover:underline flex items-center gap-1">
-                View pipeline <ArrowRight size={12} />
+                Voir le pipeline <ArrowRight size={12} />
               </Link>
             </div>
-
             {activities.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">No activity yet.</p>
+              <p className="text-sm text-slate-400 text-center py-8">Aucune activité.</p>
             ) : (
               <div className="space-y-3">
                 {activities.map(act => (
@@ -116,17 +112,17 @@ export default function Dashboard() {
                     <span className="text-base mt-0.5">{ACTIVITY_ICONS[act.type] ?? '📋'}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-700">
-                        <span className="font-semibold">{act.user?.full_name ?? act.user?.email ?? 'Unknown'}</span>
-                        {' '}—{' '}
+                        <span className="font-semibold">{act.user?.full_name ?? act.user?.email ?? 'Inconnu'}</span>
+                        {' — '}
                         <Link to={`/leads/${act.lead_id}`} className="text-brand-600 hover:underline">
-                          {act.lead?.organization_name ?? 'Lead'}
+                          {act.lead?.organization_name ?? 'Prospect'}
                         </Link>
                       </p>
                       {act.content && <p className="text-xs text-slate-500 mt-0.5 truncate">{act.content}</p>}
                     </div>
                     <time className="text-xs text-slate-400 flex-shrink-0 flex items-center gap-1">
                       <Clock size={11} />
-                      {new Date(act.created_at).toLocaleDateString()}
+                      {new Date(act.created_at).toLocaleDateString('fr-FR')}
                     </time>
                   </div>
                 ))}

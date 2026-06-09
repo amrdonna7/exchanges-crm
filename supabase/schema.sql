@@ -1,13 +1,13 @@
 -- ============================================================
--- Exchanges CRM – Supabase Schema
+-- Exchanges CRM – Supabase Schema v2 (French pipeline)
 -- Run this in the Supabase SQL editor to set up the database.
+-- If upgrading from v1, run supabase/migration_v2.sql instead.
 -- ============================================================
 
--- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
 -- -------------------------------------------------------
--- PROFILES (mirrors auth.users, one row per user)
+-- PROFILES
 -- -------------------------------------------------------
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -21,15 +21,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
--- Users can read all profiles (needed for assignee dropdown)
 create policy "profiles_select" on public.profiles
   for select using (auth.role() = 'authenticated');
 
--- Users can update their own profile
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id);
 
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -49,6 +46,33 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- -------------------------------------------------------
+-- CUSTOM FIELD DEFINITIONS (global field schema)
+-- -------------------------------------------------------
+create table if not exists public.custom_field_definitions (
+  id          uuid primary key default uuid_generate_v4(),
+  name        text not null,
+  type        text not null default 'text'
+                check (type in ('text','number','percentage','checkbox','date','dropdown','phone','email')),
+  options     jsonb,          -- dropdown options: ["Option A","Option B"]
+  sort_order  int  not null default 0,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.custom_field_definitions enable row level security;
+
+create policy "field_defs_select" on public.custom_field_definitions
+  for select using (auth.role() = 'authenticated');
+
+create policy "field_defs_insert" on public.custom_field_definitions
+  for insert with check (auth.role() = 'authenticated');
+
+create policy "field_defs_update" on public.custom_field_definitions
+  for update using (auth.role() = 'authenticated');
+
+create policy "field_defs_delete" on public.custom_field_definitions
+  for delete using (auth.role() = 'authenticated');
+
+-- -------------------------------------------------------
 -- LEADS
 -- -------------------------------------------------------
 create table if not exists public.leads (
@@ -58,10 +82,16 @@ create table if not exists public.leads (
   phone              text,
   email              text,
   city               text,
-  type               text check (type in ('school', 'university', 'language_center', 'bookstore', 'other')),
-  publisher_interest text check (publisher_interest in ('CUP', 'NGL', 'Pearson', 'Other')),
-  stage              text not null default 'prospect'
-                       check (stage in ('prospect', 'contacted', 'meeting_scheduled', 'proposal_sent', 'negotiation', 'won', 'lost')),
+  type               text check (type in ('school','university','language_center','bookstore','other')),
+  publisher_interest text check (publisher_interest in ('CUP','NGL','Pearson','Autre')),
+  stage              text not null default 'prospect_qualifie'
+                       check (stage in (
+                         'prospect_qualifie','contact','visite','proposition',
+                         'negociation','conclu','non_conclu','acheve'
+                       )),
+  priority           text default 'normale'
+                       check (priority in ('urgente','normale','basse')),
+  custom_fields      jsonb not null default '{}'::jsonb,
   assigned_to        uuid references public.profiles(id) on delete set null,
   notes              text,
   created_by         uuid references public.profiles(id) on delete set null,
@@ -71,28 +101,21 @@ create table if not exists public.leads (
 
 alter table public.leads enable row level security;
 
--- All authenticated users can read leads
 create policy "leads_select" on public.leads
   for select using (auth.role() = 'authenticated');
 
--- All authenticated users can insert leads
 create policy "leads_insert" on public.leads
   for insert with check (auth.role() = 'authenticated');
 
--- All authenticated users can update leads
 create policy "leads_update" on public.leads
   for update using (auth.role() = 'authenticated');
 
--- Only creator or admin can delete
 create policy "leads_delete" on public.leads
   for delete using (
     auth.uid() = created_by
-    or exists (
-      select 1 from public.profiles where id = auth.uid() and role = 'admin'
-    )
+    or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
   );
 
--- Updated_at trigger for leads
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -107,13 +130,13 @@ create trigger leads_set_updated_at
   for each row execute procedure public.set_updated_at();
 
 -- -------------------------------------------------------
--- ACTIVITIES (audit / activity log per lead)
+-- ACTIVITIES
 -- -------------------------------------------------------
 create table if not exists public.activities (
   id          uuid primary key default uuid_generate_v4(),
   lead_id     uuid not null references public.leads(id) on delete cascade,
   user_id     uuid references public.profiles(id) on delete set null,
-  type        text not null check (type in ('note', 'stage_change', 'field_update', 'call', 'email', 'meeting')),
+  type        text not null check (type in ('note','stage_change','field_update','call','email','meeting')),
   content     text,
   meta        jsonb,
   created_at  timestamptz not null default now()
@@ -133,24 +156,38 @@ create policy "activities_delete" on public.activities
 -- -------------------------------------------------------
 -- INDEXES
 -- -------------------------------------------------------
-create index if not exists leads_stage_idx       on public.leads(stage);
-create index if not exists leads_assigned_idx    on public.leads(assigned_to);
-create index if not exists leads_created_by_idx  on public.leads(created_by);
-create index if not exists activities_lead_idx   on public.activities(lead_id);
-create index if not exists activities_user_idx   on public.activities(user_id);
-
--- Full-text search index on leads
-create index if not exists leads_fts_idx on public.leads
-  using gin(to_tsvector('english',
-    coalesce(organization_name, '') || ' ' ||
-    coalesce(contact_person, '') || ' ' ||
-    coalesce(email, '') || ' ' ||
-    coalesce(city, '') || ' ' ||
-    coalesce(phone, '')
-  ));
+create index if not exists leads_stage_idx      on public.leads(stage);
+create index if not exists leads_assigned_idx   on public.leads(assigned_to);
+create index if not exists leads_priority_idx   on public.leads(priority);
+create index if not exists activities_lead_idx  on public.activities(lead_id);
+create index if not exists field_defs_order_idx on public.custom_field_definitions(sort_order);
 
 -- -------------------------------------------------------
--- REALTIME (optional – enable for live Kanban updates)
+-- SEED DEFAULT CUSTOM FIELD DEFINITIONS
 -- -------------------------------------------------------
--- alter publication supabase_realtime add table public.leads;
--- alter publication supabase_realtime add table public.activities;
+insert into public.custom_field_definitions (name, type, sort_order) values
+  ('Ville',                       'text',     1),
+  ('Catégorie',                   'text',     2),
+  ('Cycle validé au Collège',     'checkbox', 3),
+  ('Cycle validé au Lycée',       'checkbox', 4),
+  ('Cycle validé au Préscolaire', 'checkbox', 5),
+  ('Cycle validé au Primaire',    'checkbox', 6),
+  ('Date de contact',             'date',     7),
+  ('Date dernière adoption',      'date',     8),
+  ('Décisionnaire',               'text',     9),
+  ('Effectif Collège',            'number',   10),
+  ('Effectif Lycée',              'number',   11),
+  ('Effectif Préscolaire',        'number',   12),
+  ('Effectif Primaire',           'number',   13),
+  ('Effectif est.',               'number',   14),
+  ('Email',                       'email',    15),
+  ('Maroc',                       'checkbox', 16),
+  ('Méthode utilisée',            'text',     17),
+  ('Programme Collège',           'text',     18),
+  ('Programme Lycée',             'text',     19),
+  ('Programme Maternelle',        'text',     20),
+  ('Programme Primaire',          'text',     21),
+  ('Solution adoptée',            'text',     22),
+  ('Téléphone',                   'phone',    23),
+  ('Volume Horaire',              'text',     24)
+on conflict do nothing;

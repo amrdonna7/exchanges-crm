@@ -1,74 +1,53 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Building2, User, ChevronDown } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Plus } from 'lucide-react'
+import { DragDropContext, Droppable } from '@hello-pangea/dnd'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { STAGES, STAGE_MAP, LEAD_TYPES, PUBLISHERS } from '../lib/constants'
+import { STAGES, STAGE_MAP } from '../lib/constants'
+import KanbanCard from '../components/KanbanCard'
 import NewLeadModal from '../components/NewLeadModal'
 
-function LeadCard({ lead, onStageChange }) {
-  const stage = STAGE_MAP[lead.stage]
+function Column({ stage, leads, usersMap }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-3.5 shadow-sm hover:shadow-md transition-shadow">
-      <Link to={`/leads/${lead.id}`} className="block">
-        <p className="font-semibold text-slate-800 text-sm leading-snug hover:text-brand-600 transition-colors">
-          {lead.organization_name}
-        </p>
-        {lead.contact_person && (
-          <p className="text-xs text-slate-500 flex items-center gap-1 mt-1.5">
-            <User size={11} /> {lead.contact_person}
-          </p>
-        )}
-        {lead.city && (
-          <p className="text-xs text-slate-400 mt-0.5">{lead.city}</p>
-        )}
-      </Link>
-      <div className="flex items-center gap-2 mt-3 flex-wrap">
-        {lead.type && (
-          <span className="badge bg-slate-100 text-slate-600">
-            {LEAD_TYPES.find(t => t.id === lead.type)?.label ?? lead.type}
-          </span>
-        )}
-        {lead.publisher_interest && (
-          <span className="badge bg-brand-50 text-brand-700">{lead.publisher_interest}</span>
-        )}
-      </div>
-      {/* Quick stage move */}
-      <select
-        value={lead.stage}
-        onChange={e => onStageChange(lead.id, e.target.value)}
-        className="mt-3 w-full text-xs border border-slate-200 rounded-md px-2 py-1
-                   bg-white text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand-400"
-        onClick={e => e.stopPropagation()}
-      >
-        {STAGES.map(s => (
-          <option key={s.id} value={s.id}>{s.label}</option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-function Column({ stage, leads, onStageChange }) {
-  return (
-    <div className="flex-shrink-0 w-64 flex flex-col">
-      <div className="flex items-center gap-2 mb-3 px-1">
+    <div className="flex-shrink-0 w-60 flex flex-col">
+      {/* Column header */}
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-t-lg border-t-2 mb-0
+                       ${stage.headerBg} ${stage.headerBorder}`}>
         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${stage.dot}`} />
-        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{stage.label}</h3>
-        <span className="ml-auto text-xs font-semibold bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">
+        <span className={`text-[11px] font-bold uppercase tracking-wider flex-1 ${stage.headerText}`}>
+          {stage.label}
+        </span>
+        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${stage.countBg}`}>
           {leads.length}
         </span>
       </div>
-      <div className="space-y-2.5 min-h-[120px]">
-        {leads.map(lead => (
-          <LeadCard key={lead.id} lead={lead} onStageChange={onStageChange} />
-        ))}
-        {leads.length === 0 && (
-          <div className="border-2 border-dashed border-slate-200 rounded-lg h-24 flex items-center justify-center">
-            <p className="text-xs text-slate-300 font-medium">Empty</p>
+
+      {/* Drop zone */}
+      <Droppable droppableId={stage.id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex-1 rounded-b-lg p-2 space-y-2 min-h-[80px] transition-colors
+                        ${snapshot.isDraggingOver ? 'bg-brand-50 ring-2 ring-brand-200 ring-inset' : 'bg-slate-100/60'}`}
+          >
+            {leads.map((lead, idx) => (
+              <KanbanCard
+                key={lead.id}
+                lead={lead}
+                index={idx}
+                assignedUser={lead.assigned_to ? usersMap[lead.assigned_to] : null}
+              />
+            ))}
+            {provided.placeholder}
+            {leads.length === 0 && !snapshot.isDraggingOver && (
+              <div className="h-14 flex items-center justify-center">
+                <p className="text-[11px] text-slate-300 font-medium">Vide</p>
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </Droppable>
     </div>
   )
 }
@@ -76,85 +55,106 @@ function Column({ stage, leads, onStageChange }) {
 export default function Pipeline() {
   const { user } = useAuth()
   const [leads, setLeads] = useState([])
+  const [usersMap, setUsersMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [filter, setFilter] = useState('all') // 'all' | 'mine'
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => {
-    loadLeads()
+    async function load() {
+      const [{ data: leadsData }, { data: usersData }] = await Promise.all([
+        supabase.from('leads').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, full_name, email'),
+      ])
+      setLeads(leadsData ?? [])
+      const map = {}
+      for (const u of usersData ?? []) map[u.id] = u
+      setUsersMap(map)
+      setLoading(false)
+    }
+    load()
   }, [])
 
-  async function loadLeads() {
-    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false })
-    setLeads(data ?? [])
-    setLoading(false)
-  }
+  const handleDragEnd = useCallback(async (result) => {
+    const { source, destination, draggableId } = result
+    if (!destination) return
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
-  async function handleStageChange(leadId, newStage) {
-    const prev = leads.find(l => l.id === leadId)
-    setLeads(ls => ls.map(l => l.id === leadId ? { ...l, stage: newStage } : l))
-    const { error } = await supabase.from('leads').update({ stage: newStage }).eq('id', leadId)
+    const newStage = destination.droppableId
+    const prevLead = leads.find(l => l.id === draggableId)
+    if (!prevLead || prevLead.stage === newStage) return
+
+    // Optimistic update
+    setLeads(ls => ls.map(l => l.id === draggableId ? { ...l, stage: newStage } : l))
+
+    const { error } = await supabase.from('leads').update({ stage: newStage }).eq('id', draggableId)
     if (error) {
-      setLeads(ls => ls.map(l => l.id === leadId ? prev : l))
+      // Rollback
+      setLeads(ls => ls.map(l => l.id === draggableId ? prevLead : l))
       return
     }
-    // Log activity
+
     await supabase.from('activities').insert({
-      lead_id: leadId,
+      lead_id: draggableId,
       user_id: user?.id,
       type: 'stage_change',
-      content: `Stage changed from ${STAGE_MAP[prev.stage]?.label} to ${STAGE_MAP[newStage]?.label}`,
-      meta: { from: prev.stage, to: newStage },
+      content: `Étape changée : ${STAGE_MAP[prevLead.stage]?.label} → ${STAGE_MAP[newStage]?.label}`,
+      meta: { from: prevLead.stage, to: newStage },
     })
-  }
+  }, [leads, user])
 
   const filtered = filter === 'mine' ? leads.filter(l => l.assigned_to === user?.id) : leads
 
   return (
-    <div className="p-4 lg:p-8 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Pipeline</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{leads.length} total leads</p>
-        </div>
+    <div className="flex flex-col h-full">
+      {/* Topbar */}
+      <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden text-sm">
+          <h1 className="text-base font-bold text-slate-800">Pipeline</h1>
+          <span className="text-xs text-slate-400">{leads.length} prospects</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-slate-100 rounded-lg overflow-hidden text-xs">
             <button
               onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 font-medium transition-colors ${filter === 'all' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 font-semibold transition-colors
+                ${filter === 'all' ? 'bg-brand-600 text-white rounded-lg' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              All
+              Tous
             </button>
             <button
               onClick={() => setFilter('mine')}
-              className={`px-3 py-1.5 font-medium transition-colors ${filter === 'mine' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 font-semibold transition-colors
+                ${filter === 'mine' ? 'bg-brand-600 text-white rounded-lg' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Mine
+              Les miens
             </button>
           </div>
-          <button onClick={() => setShowModal(true)} className="btn-primary">
-            <Plus size={16} /> Add Lead
+          <button onClick={() => setShowModal(true)} className="btn-primary text-xs px-3 py-1.5">
+            <Plus size={14} /> Nouveau
           </button>
         </div>
       </div>
 
+      {/* Board */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max h-full pb-2">
-            {STAGES.map(stage => (
-              <Column
-                key={stage.id}
-                stage={stage}
-                leads={filtered.filter(l => l.stage === stage.id)}
-                onStageChange={handleStageChange}
-              />
-            ))}
-          </div>
+        <div className="flex-1 overflow-x-auto p-4">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="flex gap-3 min-w-max h-full pb-4 items-start">
+              {STAGES.map(stage => (
+                <Column
+                  key={stage.id}
+                  stage={stage}
+                  leads={filtered.filter(l => l.stage === stage.id)}
+                  usersMap={usersMap}
+                />
+              ))}
+            </div>
+          </DragDropContext>
         </div>
       )}
 
