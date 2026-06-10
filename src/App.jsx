@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { PipelineProvider } from './contexts/PipelineContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import Pipeline from './pages/Pipeline'
+import PipelineBoard from './pages/PipelineBoard'
 import LeadDetail from './pages/LeadDetail'
-import Search from './pages/Search'
 
 function App() {
   return (
@@ -18,15 +18,16 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/pipeline" element={<Pipeline />} />
-                    <Route path="/leads/:id" element={<LeadDetail />} />
-                    <Route path="/search" element={<Search />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </Layout>
+                <PipelineProvider>
+                  <Layout>
+                    <Routes>
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/pipeline/:pipelineId" element={<PipelineBoard />} />
+                      <Route path="/leads/:id" element={<LeadDetail />} />
+                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
+                  </Layout>
+                </PipelineProvider>
               </ProtectedRoute>
             }
           />

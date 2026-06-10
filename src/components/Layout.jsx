@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, KanbanSquare, Search, LogOut, Menu, X } from 'lucide-react'
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
+import {
+  LayoutDashboard, KanbanSquare, LogOut, Menu, X,
+  Plus, ChevronRight, Settings, Loader2,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-
-const nav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-  { to: '/pipeline',  icon: KanbanSquare,    label: 'Pipeline' },
-  { to: '/search',    icon: Search,          label: 'Recherche' },
-]
+import { usePipelines } from '../contexts/PipelineContext'
+import NewPipelineModal from './NewPipelineModal'
 
 export default function Layout({ children }) {
   const { profile, signOut } = useAuth()
+  const { pipelines, loading: plLoading } = usePipelines()
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
+  const [showNewPipeline, setShowNewPipeline] = useState(false)
 
   async function handleSignOut() {
     await signOut()
@@ -30,12 +32,12 @@ export default function Layout({ children }) {
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 w-56 bg-brand-900 flex flex-col
+        className={`fixed lg:static inset-y-0 left-0 z-30 w-60 bg-brand-900 flex flex-col
                     transition-transform duration-200
                     ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-brand-800">
+        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-brand-800 flex-shrink-0">
           <div className="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center flex-shrink-0">
             <span className="text-white font-black text-sm">E</span>
           </div>
@@ -46,26 +48,57 @@ export default function Layout({ children }) {
         </div>
 
         <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          {nav.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors
-                 ${isActive
-                   ? 'bg-brand-700 text-white'
-                   : 'text-brand-200 hover:bg-brand-800 hover:text-white'}`
-              }
-            >
-              <Icon size={15} />
-              {label}
-            </NavLink>
-          ))}
+          {/* Dashboard */}
+          <NavLink
+            to="/dashboard"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors
+               ${isActive ? 'bg-brand-700 text-white' : 'text-brand-200 hover:bg-brand-800 hover:text-white'}`
+            }
+          >
+            <LayoutDashboard size={15} />
+            Dashboard
+          </NavLink>
+
+          {/* Pipelines section */}
+          <div className="pt-3 pb-1">
+            <div className="flex items-center justify-between px-3 mb-1">
+              <span className="text-[10px] font-bold text-brand-400 uppercase tracking-widest">Pipelines</span>
+              <button
+                onClick={() => setShowNewPipeline(true)}
+                className="text-brand-400 hover:text-white transition-colors p-0.5 rounded"
+                title="New pipeline"
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+
+            {plLoading ? (
+              <div className="flex justify-center py-2">
+                <Loader2 size={14} className="text-brand-400 animate-spin" />
+              </div>
+            ) : (
+              pipelines.map(pl => (
+                <NavLink
+                  key={pl.id}
+                  to={`/pipeline/${pl.id}`}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors
+                     ${isActive ? 'bg-brand-700 text-white' : 'text-brand-300 hover:bg-brand-800 hover:text-white'}`
+                  }
+                >
+                  <KanbanSquare size={13} className="flex-shrink-0" />
+                  <span className="flex-1 truncate">{pl.name}</span>
+                </NavLink>
+              ))
+            )}
+          </div>
         </nav>
 
         {/* User */}
-        <div className="p-2 border-t border-brand-800">
+        <div className="p-2 border-t border-brand-800 flex-shrink-0">
           <div className="flex items-center gap-2.5 px-3 py-2">
             <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center flex-shrink-0">
               <span className="text-white text-[10px] font-bold">{initials}</span>
@@ -85,14 +118,14 @@ export default function Layout({ children }) {
                        hover:bg-brand-800 hover:text-white transition-colors"
           >
             <LogOut size={13} />
-            Déconnexion
+            Sign out
           </button>
         </div>
       </aside>
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200">
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
           <button onClick={() => setOpen(true)} className="text-slate-600">
             <Menu size={18} />
           </button>
@@ -102,6 +135,10 @@ export default function Layout({ children }) {
           {children}
         </main>
       </div>
+
+      {showNewPipeline && (
+        <NewPipelineModal onClose={() => setShowNewPipeline(false)} />
+      )}
     </div>
   )
 }

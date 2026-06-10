@@ -98,7 +98,7 @@ function TypePickerGrid({ onPick, exclude }) {
 }
 
 // ─── Add field button (two-step flow: pick type → name) ──────────────────────
-function AddFieldButton({ onAdd }) {
+function AddFieldButton({ onAdd, pipelineId }) {
   const [step, setStep]         = useState(null)  // null | 'type' | 'name'
   const [chosenType, setChosen] = useState(null)
   const [name, setName]         = useState('')
@@ -128,7 +128,7 @@ function AddFieldButton({ onAdd }) {
       .maybeSingle()
     const { data, error } = await supabase
       .from('custom_field_definitions')
-      .insert({ name: name.trim(), type: chosenType, sort_order: (max?.sort_order ?? 0) + 1 })
+      .insert({ name: name.trim(), type: chosenType, sort_order: (max?.sort_order ?? 0) + 1, pipeline_id: pipelineId ?? null })
       .select()
       .single()
     setSaving(false)
@@ -574,7 +574,7 @@ function SortableRow({
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export default function ChampsSection({ fieldDefs, setFieldDefs, customFields, onChange }) {
+export default function ChampsSection({ fieldDefs, setFieldDefs, customFields, onChange, pipelineId }) {
   const [showEmpty,      setShowEmpty]      = useState(false)
   const [renamingId,     setRenamingId]     = useState(null)
   const [renameVal,      setRenameVal]      = useState('')
@@ -675,6 +675,7 @@ export default function ChampsSection({ fieldDefs, setFieldDefs, customFields, o
               setShowEmpty(true)
               flash()
             }}
+            pipelineId={pipelineId}
           />
         </div>
       </div>
