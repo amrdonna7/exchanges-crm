@@ -162,32 +162,5 @@ create index if not exists leads_priority_idx   on public.leads(priority);
 create index if not exists activities_lead_idx  on public.activities(lead_id);
 create index if not exists field_defs_order_idx on public.custom_field_definitions(sort_order);
 
--- -------------------------------------------------------
--- SEED DEFAULT CUSTOM FIELD DEFINITIONS
--- -------------------------------------------------------
-insert into public.custom_field_definitions (name, type, sort_order) values
-  ('Ville',                       'text',     1),
-  ('Catégorie',                   'text',     2),
-  ('Cycle validé au Collège',     'checkbox', 3),
-  ('Cycle validé au Lycée',       'checkbox', 4),
-  ('Cycle validé au Préscolaire', 'checkbox', 5),
-  ('Cycle validé au Primaire',    'checkbox', 6),
-  ('Date de contact',             'date',     7),
-  ('Date dernière adoption',      'date',     8),
-  ('Décisionnaire',               'text',     9),
-  ('Effectif Collège',            'number',   10),
-  ('Effectif Lycée',              'number',   11),
-  ('Effectif Préscolaire',        'number',   12),
-  ('Effectif Primaire',           'number',   13),
-  ('Effectif est.',               'number',   14),
-  ('Email',                       'email',    15),
-  ('Maroc',                       'checkbox', 16),
-  ('Méthode utilisée',            'text',     17),
-  ('Programme Collège',           'text',     18),
-  ('Programme Lycée',             'text',     19),
-  ('Programme Maternelle',        'text',     20),
-  ('Programme Primaire',          'text',     21),
-  ('Solution adoptée',            'text',     22),
-  ('Téléphone',                   'phone',    23),
-  ('Volume Horaire',              'text',     24)
-on conflict do nothing;
+-- No default fields seeded — the Champs section starts blank.
+-- Users add fields from the lead detail page using the "+" button.
