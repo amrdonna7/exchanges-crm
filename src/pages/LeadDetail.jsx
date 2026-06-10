@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Trash2, Loader2, Plus, Clock, Flag, User, Check,
-  ChevronDown, Calendar, Timer, Tag,
+  ChevronDown, Calendar, Timer, Tag, Camera,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -143,7 +143,9 @@ export default function LeadDetail() {
   const [noteType, setNoteType] = useState('note')
   const [addingNote, setAddingNote] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const saveTimer = useRef(null)
+  const avatarInputRef = useRef(null)
 
   useEffect(() => {
     async function load() {
@@ -193,6 +195,7 @@ export default function LeadDetail() {
         assigned_to: latest.assigned_to,
         notes: latest.notes,
         custom_fields: latest.custom_fields,
+        avatar_url: latest.avatar_url,
       }
       supabase.from('leads').update(payload).eq('id', id).then(({ error }) => {
         setSaving(false)
@@ -208,6 +211,27 @@ export default function LeadDetail() {
 
   function updateCustomFields(newCf) {
     touchField(l => ({ ...l, custom_fields: newCf }))
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    const ext = file.name.split('.').pop()
+    const path = `${id}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('lead-avatars')
+      .upload(path, file, { upsert: true, contentType: file.type })
+    if (uploadError) {
+      console.error('Avatar upload failed:', uploadError)
+      setUploadingAvatar(false)
+      return
+    }
+    const { data: { publicUrl } } = supabase.storage.from('lead-avatars').getPublicUrl(path)
+    const avatarUrl = `${publicUrl}?t=${Date.now()}`
+    await supabase.from('leads').update({ avatar_url: avatarUrl }).eq('id', id)
+    setLead(l => ({ ...l, avatar_url: avatarUrl }))
+    setUploadingAvatar(false)
   }
 
   async function handleStageChange(newStage) {
@@ -286,12 +310,47 @@ export default function LeadDetail() {
         </div>
 
         <div className="px-6 py-5 max-w-3xl">
-          {/* Title */}
-          <EditableTitle
-            value={lead.organization_name}
-            onChange={v => update('organization_name', v)}
-            onBlur={() => {}}
-          />
+          {/* Avatar + Title */}
+          <div className="flex items-start gap-4 mb-1">
+            <div className="relative flex-shrink-0 group">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 focus:outline-none
+                           ring-2 ring-slate-200 hover:ring-brand-400 transition-all relative"
+              >
+                {lead.avatar_url ? (
+                  <img src={lead.avatar_url} alt={lead.organization_name}
+                       className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                    <span className="text-slate-500 font-bold text-xl">
+                      {lead.organization_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? '?'}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity
+                                flex items-center justify-center rounded-full">
+                  {uploadingAvatar
+                    ? <Loader2 size={18} className="text-white animate-spin" />
+                    : <Camera size={18} className="text-white" />}
+                </div>
+              </button>
+            </div>
+            <div className="flex-1 min-w-0 pt-1">
+              <EditableTitle
+                value={lead.organization_name}
+                onChange={v => update('organization_name', v)}
+                onBlur={() => {}}
+              />
+            </div>
+          </div>
 
           {/* Meta row: Stage, Assigné, Priorité */}
           <div className="flex items-center gap-1.5 mt-4 flex-wrap">

@@ -103,10 +103,11 @@ function AddFieldButton({ onAdd }) {
   const [chosenType, setChosen] = useState(null)
   const [name, setName]         = useState('')
   const [saving, setSaving]     = useState(false)
+  const [createError, setCreateError] = useState(null)
   const ref     = useRef(null)
   const inputRef = useRef(null)
 
-  useClickOutside(ref, () => { setStep(null); setChosen(null); setName('') })
+  useClickOutside(ref, () => { setStep(null); setChosen(null); setName(''); setCreateError(null) })
 
   function pickType(key) {
     setChosen(key)
@@ -118,21 +119,27 @@ function AddFieldButton({ onAdd }) {
   async function create() {
     if (!name.trim() || !chosenType || saving) return
     setSaving(true)
+    setCreateError(null)
     const { data: max } = await supabase
       .from('custom_field_definitions')
       .select('sort_order')
       .order('sort_order', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
     const { data, error } = await supabase
       .from('custom_field_definitions')
       .insert({ name: name.trim(), type: chosenType, sort_order: (max?.sort_order ?? 0) + 1 })
       .select()
       .single()
     setSaving(false)
-    if (!error && data) {
+    if (error) {
+      console.error('Field creation failed:', error)
+      setCreateError(error.message ?? 'Erreur lors de la création du champ')
+      return
+    }
+    if (data) {
       onAdd(data)
-      setStep(null); setChosen(null); setName('')
+      setStep(null); setChosen(null); setName(''); setCreateError(null)
     }
   }
 
@@ -183,6 +190,9 @@ function AddFieldButton({ onAdd }) {
               if (e.key === 'Escape') setStep('type')
             }}
           />
+          {createError && (
+            <p className="text-[11px] text-red-500 mt-1.5">{createError}</p>
+          )}
           <div className="flex gap-2 mt-2.5">
             <button onClick={() => setStep('type')} className="btn-secondary text-xs py-1.5 flex-1 justify-center">
               ← Retour

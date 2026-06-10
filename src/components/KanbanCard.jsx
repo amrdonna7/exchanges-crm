@@ -14,6 +14,26 @@ function Avatar({ name }) {
   )
 }
 
+function LeadAvatar({ avatarUrl, orgName }) {
+  const initials = orgName
+    ? orgName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?'
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={orgName}
+        className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-white border border-slate-200"
+      />
+    )
+  }
+  return (
+    <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
+      <span className="text-slate-500 font-bold leading-none text-[10px]">{initials}</span>
+    </div>
+  )
+}
+
 // Shared card body — used both in the board and in the DragOverlay
 export function CardBody({ lead, assignedUser, dragging = false }) {
   return (
@@ -23,9 +43,12 @@ export function CardBody({ lead, assignedUser, dragging = false }) {
                     ? 'border-brand-400 shadow-2xl rotate-[1.5deg] scale-105 ring-2 ring-brand-200'
                     : 'border-slate-200 hover:border-slate-300 hover:shadow-md'}`}
     >
-      <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2">
-        {lead.organization_name}
-      </p>
+      <div className="flex items-start gap-2.5">
+        <LeadAvatar avatarUrl={lead.avatar_url} orgName={lead.organization_name} />
+        <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2 flex-1 min-w-0">
+          {lead.organization_name}
+        </p>
+      </div>
 
       <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
         {assignedUser ? (
