@@ -114,14 +114,8 @@ export const ACTIVITY_ICONS = {
   meeting:      '🤝',
 }
 
-// ─── Default custom field definitions (seeded in DB) ─────────────────────────
-export const DEFAULT_FIELD_TYPES = [
-  { key: 'text',       label: 'Texte',       icon: 'T' },
-  { key: 'number',     label: 'Nombre',      icon: '#' },
-  { key: 'percentage', label: 'Pourcentage', icon: '%' },
-  { key: 'checkbox',   label: 'Case',        icon: '☑' },
-  { key: 'date',       label: 'Date',        icon: '📅' },
-  { key: 'dropdown',   label: 'Liste',       icon: '▾' },
-  { key: 'phone',      label: 'Téléphone',   icon: '📞' },
-  { key: 'email',      label: 'Email',       icon: '@' },
+// ─── Custom field type keys (for reference) ───────────────────────────────────
+export const CUSTOM_FIELD_TYPES = [
+  'text', 'number', 'percentage', 'checkbox', 'date',
+  'phone', 'email', 'dropdown', 'url', 'long_note', 'currency', 'stars',
 ]
