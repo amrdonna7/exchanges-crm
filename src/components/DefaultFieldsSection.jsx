@@ -17,23 +17,21 @@ export const DEFAULT_FIELDS = [
   { key: 'effectif_prescolaire',    label: 'Effectif Préscolaire',           type: 'number' },
   { key: 'effectif_primaire',       label: 'Effectif Primaire',              type: 'number' },
   { key: 'effectif_estime',         label: 'Effectif estimé',                type: 'number' },
-  { key: 'email',                   label: 'Email',                          type: 'email' },
   { key: 'methode_utilisee',        label: 'Méthode utilisée',               type: 'text' },
   { key: 'programme_college',       label: 'Programme Collège',              type: 'text' },
   { key: 'programme_lycee',         label: 'Programme Lycée',                type: 'text' },
   { key: 'programme_maternelle',    label: 'Programme Maternelle',           type: 'text' },
   { key: 'programme_primaire',      label: 'Programme Primaire',             type: 'text' },
-  { key: 'phone',                   label: 'Téléphone',                      type: 'text' },
   { key: 'volume_horaire',          label: 'Volume Horaire',                 type: 'dropdown', options: ['1H', '2H', '3H'] },
 ]
 
-// ─── Single field row — always-editable ──────────────────────────────────────
+// ─── Single field row ─────────────────────────────────────────────────────────
 function FieldRow({ fieldKey, label, type, options, value, leadId, onUpdate }) {
   const [localVal, setLocalVal] = useState(value ?? (type === 'checkbox' ? false : ''))
   const [saved, setSaved] = useState(false)
   const saveTimer = useRef(null)
 
-  // Sync when parent lead prop changes (e.g. initial load)
+  // Sync when parent prop changes (initial load or external update)
   const prevValue = useRef(value)
   if (prevValue.current !== value) {
     prevValue.current = value
@@ -54,7 +52,7 @@ function FieldRow({ fieldKey, label, type, options, value, leadId, onUpdate }) {
   function handleChange(val) {
     setLocalVal(val)
     clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => persist(val), 800)
+    saveTimer.current = setTimeout(() => persist(val), 700)
   }
 
   const inputClass = `w-full text-sm text-slate-700 bg-slate-50 border border-slate-300 rounded-md
@@ -66,20 +64,19 @@ function FieldRow({ fieldKey, label, type, options, value, leadId, onUpdate }) {
     editor = (
       <button
         onClick={() => { const n = !localVal; setLocalVal(n); persist(n) }}
-        className={`w-[20px] h-[20px] rounded-[4px] border-2 flex items-center justify-center
+        className={`w-[22px] h-[22px] rounded-[4px] border-2 flex items-center justify-center
                     flex-shrink-0 transition-all duration-150
-                    ${localVal ? 'bg-brand-600 border-brand-600' : 'border-slate-300 hover:border-brand-400 bg-white'}`}
+                    ${localVal
+                      ? 'bg-brand-600 border-brand-600'
+                      : 'border-slate-300 hover:border-brand-400 bg-white'}`}
       >
         {localVal && <Check size={12} className="text-white" strokeWidth={3} />}
       </button>
     )
   } else if (type === 'dropdown') {
     editor = (
-      <select
-        className={inputClass}
-        value={localVal ?? ''}
-        onChange={e => handleChange(e.target.value || null)}
-      >
+      <select className={inputClass} value={localVal ?? ''}
+              onChange={e => handleChange(e.target.value || null)}>
         <option value="">—</option>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -87,27 +84,35 @@ function FieldRow({ fieldKey, label, type, options, value, leadId, onUpdate }) {
   } else {
     editor = (
       <input
-        type={type === 'email' ? 'email' : type === 'number' ? 'number' : type === 'date' ? 'date' : 'text'}
+        type={type === 'number' ? 'number' : type === 'date' ? 'date' : 'text'}
         className={inputClass}
         value={localVal ?? ''}
         placeholder="—"
-        onChange={e => handleChange(type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : (e.target.value || null))}
-        onKeyDown={e => { if (e.key === 'Enter') { clearTimeout(saveTimer.current); persist(localVal) } }}
+        onChange={e => handleChange(
+          type === 'number'
+            ? (e.target.value === '' ? null : Number(e.target.value))
+            : (e.target.value || null)
+        )}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { clearTimeout(saveTimer.current); persist(localVal) }
+        }}
       />
     )
   }
 
   return (
     <div className="flex items-center border-b border-slate-100 last:border-0 py-1.5 px-3 gap-3">
-      <div className="w-48 flex-shrink-0">
+      <div className="w-52 flex-shrink-0">
         <span className="text-xs font-medium text-slate-500">{label}</span>
       </div>
       <div className="flex-1 min-w-0">{editor}</div>
-      {saved && (
-        <span className="text-[11px] text-emerald-600 flex items-center gap-0.5 flex-shrink-0">
-          <Check size={10} strokeWidth={3} /> Saved
-        </span>
-      )}
+      <div className="w-14 flex-shrink-0 flex items-center justify-end">
+        {saved && (
+          <span className="text-[11px] text-emerald-600 flex items-center gap-0.5">
+            <Check size={10} strokeWidth={3} /> Saved
+          </span>
+        )}
+      </div>
     </div>
   )
 }
