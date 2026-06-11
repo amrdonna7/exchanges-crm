@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { usePipelines } from '../contexts/PipelineContext'
 import ChampsSection from '../components/ChampsSection'
-import DefaultFieldsSection from '../components/DefaultFieldsSection'
+
 import * as XLSX from 'xlsx'
 
 const PRIORITIES = [
@@ -434,15 +434,11 @@ export default function LeadDetail() {
             </span>
           </div>
 
-          {/* Default fields (always visible, saved to leads columns) */}
-          <DefaultFieldsSection
+          {/* Unified Champs section: default fields + custom fields */}
+          <ChampsSection
             lead={lead}
             leadId={id}
-            onUpdate={updateDefaultField}
-          />
-
-          {/* Custom fields (pipeline-scoped, saved to custom_field_definitions) */}
-          <ChampsSection
+            onUpdateDefault={updateDefaultField}
             fieldDefs={fieldDefs}
             setFieldDefs={setFieldDefs}
             customFields={lead.custom_fields ?? {}}
