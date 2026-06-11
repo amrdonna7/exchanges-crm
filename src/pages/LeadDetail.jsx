@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { usePipelines } from '../contexts/PipelineContext'
 import ChampsSection from '../components/ChampsSection'
+import DefaultFieldsSection from '../components/DefaultFieldsSection'
 import * as XLSX from 'xlsx'
 
 const PRIORITIES = [
@@ -175,19 +176,39 @@ export default function LeadDetail() {
     setLead(latest => {
       if (!latest) return latest
       const payload = {
-        organization_name: latest.organization_name,
-        contact_person: latest.contact_person,
-        phone: latest.phone,
-        email: latest.email,
-        city: latest.city,
-        type: latest.type,
-        publisher_interest: latest.publisher_interest,
-        stage: latest.stage,
-        priority: latest.priority,
-        assigned_to: latest.assigned_to,
-        notes: latest.notes,
-        custom_fields: latest.custom_fields,
-        avatar_url: latest.avatar_url,
+        organization_name:      latest.organization_name,
+        contact_person:         latest.contact_person,
+        phone:                  latest.phone,
+        email:                  latest.email,
+        city:                   latest.city,
+        type:                   latest.type,
+        publisher_interest:     latest.publisher_interest,
+        stage:                  latest.stage,
+        priority:               latest.priority,
+        assigned_to:            latest.assigned_to,
+        notes:                  latest.notes,
+        custom_fields:          latest.custom_fields,
+        avatar_url:             latest.avatar_url,
+        // Default field columns
+        categorie:              latest.categorie,
+        cycle_college:          latest.cycle_college,
+        cycle_lycee:            latest.cycle_lycee,
+        cycle_prescolaire:      latest.cycle_prescolaire,
+        cycle_primaire:         latest.cycle_primaire,
+        date_contact:           latest.date_contact,
+        date_derniere_adoption: latest.date_derniere_adoption,
+        decisionnaire:          latest.decisionnaire,
+        effectif_college:       latest.effectif_college,
+        effectif_lycee:         latest.effectif_lycee,
+        effectif_prescolaire:   latest.effectif_prescolaire,
+        effectif_primaire:      latest.effectif_primaire,
+        effectif_estime:        latest.effectif_estime,
+        methode_utilisee:       latest.methode_utilisee,
+        programme_college:      latest.programme_college,
+        programme_lycee:        latest.programme_lycee,
+        programme_maternelle:   latest.programme_maternelle,
+        programme_primaire:     latest.programme_primaire,
+        volume_horaire:         latest.volume_horaire,
       }
       supabase.from('leads').update(payload).eq('id', id).then(({ error }) => {
         setSaving(false)
@@ -199,6 +220,8 @@ export default function LeadDetail() {
 
   function update(field, value) { touchField(l => ({ ...l, [field]: value })) }
   function updateCustomFields(cf) { touchField(l => ({ ...l, custom_fields: cf })) }
+  // Direct column update from DefaultFieldsSection (saves immediately, no debounce in parent)
+  function updateDefaultField(col, value) { setLead(l => l ? { ...l, [col]: value } : l) }
 
   async function handleStageChange(newStage) {
     const prevStage = lead.stage
@@ -411,7 +434,14 @@ export default function LeadDetail() {
             </span>
           </div>
 
-          {/* Champs */}
+          {/* Default fields (always visible, saved to leads columns) */}
+          <DefaultFieldsSection
+            lead={lead}
+            leadId={id}
+            onUpdate={updateDefaultField}
+          />
+
+          {/* Custom fields (pipeline-scoped, saved to custom_field_definitions) */}
           <ChampsSection
             fieldDefs={fieldDefs}
             setFieldDefs={setFieldDefs}

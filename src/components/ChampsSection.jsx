@@ -120,20 +120,32 @@ function AddFieldButton({ onAdd, pipelineId }) {
     if (!name.trim() || !chosenType || saving) return
     setSaving(true)
     setCreateError(null)
-    const { data: max } = await supabase
+
+    // Get max sort_order scoped to this pipeline
+    const pid = pipelineId ?? null
+    let maxQuery = supabase
       .from('custom_field_definitions')
       .select('sort_order')
       .order('sort_order', { ascending: false })
       .limit(1)
-      .maybeSingle()
+    maxQuery = pid ? maxQuery.eq('pipeline_id', pid) : maxQuery.is('pipeline_id', null)
+    const { data: max } = await maxQuery.maybeSingle()
+
+    const insertPayload = {
+      name: name.trim(),
+      type: chosenType,
+      sort_order: (max?.sort_order ?? -1) + 1,
+    }
+    if (pid) insertPayload.pipeline_id = pid
+
     const { data, error } = await supabase
       .from('custom_field_definitions')
-      .insert({ name: name.trim(), type: chosenType, sort_order: (max?.sort_order ?? 0) + 1, pipeline_id: pipelineId ?? null })
+      .insert(insertPayload)
       .select()
       .single()
     setSaving(false)
     if (error) {
-      console.error('Field creation failed:', error)
+      console.error('Field creation failed:', error.code, error.message, error.details)
       setCreateError(error.message ?? 'Erreur lors de la création du champ')
       return
     }
@@ -655,7 +667,7 @@ export default function ChampsSection({ fieldDefs, setFieldDefs, customFields, o
     <div className="mt-6">
       {/* Header row */}
       <div className="flex items-center gap-2 mb-2">
-        <h3 className="text-sm font-semibold text-slate-700">Champs</h3>
+        <h3 className="text-sm font-semibold text-slate-700">Champs personnalisés</h3>
         <SavedBadge show={saved} />
         <div className="ml-auto flex items-center gap-1">
           {emptyCount > 0 && (
