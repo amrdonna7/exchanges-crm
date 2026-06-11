@@ -121,37 +121,43 @@ function AddFieldButton({ onAdd, pipelineId }) {
     setSaving(true)
     setCreateError(null)
 
-    // Get max sort_order scoped to this pipeline
-    const pid = pipelineId ?? null
-    let maxQuery = supabase
-      .from('custom_field_definitions')
-      .select('sort_order')
-      .order('sort_order', { ascending: false })
-      .limit(1)
-    maxQuery = pid ? maxQuery.eq('pipeline_id', pid) : maxQuery.is('pipeline_id', null)
-    const { data: max } = await maxQuery.maybeSingle()
+    try {
+      // Use a fresh query for max sort_order — avoids stale builder chain issues
+      const { data: maxRows } = await supabase
+        .from('custom_field_definitions')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+      const nextOrder = ((maxRows?.[0]?.sort_order) ?? -1) + 1
 
-    const insertPayload = {
-      name: name.trim(),
-      type: chosenType,
-      sort_order: (max?.sort_order ?? -1) + 1,
-    }
-    if (pid) insertPayload.pipeline_id = pid
+      // Only include pipeline_id when it is a non-empty string (valid UUID)
+      const pid = pipelineId && typeof pipelineId === 'string' ? pipelineId : null
+      const insertPayload = { name: name.trim(), type: chosenType, sort_order: nextOrder }
+      if (pid) insertPayload.pipeline_id = pid
 
-    const { data, error } = await supabase
-      .from('custom_field_definitions')
-      .insert(insertPayload)
-      .select()
-      .single()
-    setSaving(false)
-    if (error) {
-      console.error('Field creation failed:', error.code, error.message, error.details)
-      setCreateError(error.message ?? 'Erreur lors de la création du champ')
-      return
-    }
-    if (data) {
-      onAdd(data)
-      setStep(null); setChosen(null); setName(''); setCreateError(null)
+      console.log('[ChampsSection] Inserting field:', insertPayload)
+
+      const { data, error } = await supabase
+        .from('custom_field_definitions')
+        .insert(insertPayload)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('[ChampsSection] Insert failed:', error.code, error.message, error.details, error.hint)
+        setCreateError(`${error.message}${error.details ? ` — ${error.details}` : ''}`)
+        return
+      }
+      if (data) {
+        console.log('[ChampsSection] Field created:', data)
+        onAdd(data)
+        setStep(null); setChosen(null); setName(''); setCreateError(null)
+      }
+    } catch (err) {
+      console.error('[ChampsSection] Unexpected error:', err)
+      setCreateError('Erreur inattendue — voir la console')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -203,7 +209,9 @@ function AddFieldButton({ onAdd, pipelineId }) {
             }}
           />
           {createError && (
-            <p className="text-[11px] text-red-500 mt-1.5">{createError}</p>
+            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2 mt-2">
+              {createError}
+            </p>
           )}
           <div className="flex gap-2 mt-2.5">
             <button onClick={() => setStep('type')} className="btn-secondary text-xs py-1.5 flex-1 justify-center">
