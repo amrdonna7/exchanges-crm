@@ -131,7 +131,7 @@ export default function PipelineBoard() {
   function matchesSearch(lead) {
     if (!keywords.length) return true
     const haystack = [
-      lead.organization_name, lead.contact_person, lead.city,
+      lead.name, lead.contact_person, lead.city,
       lead.phone, lead.email, lead.notes,
     ].filter(Boolean).join(' ').toLowerCase()
     return keywords.every(kw => haystack.includes(kw))
@@ -185,7 +185,7 @@ export default function PipelineBoard() {
   function exportToExcel() {
     const stageNameMap = Object.fromEntries(stages.map(s => [s.id, s.name]))
     const rows = leads.map(l => ({
-      'Organization':   l.organization_name ?? '',
+      'Organization':   l.name ?? '',
       'Contact':        l.contact_person ?? '',
       'City':           l.city ?? '',
       'Phone':          l.phone ?? '',

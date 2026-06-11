@@ -15,7 +15,7 @@ export default function NewLeadModal({ pipelineId, stages = [], defaultStageId, 
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
   const [form, setForm]     = useState({
-    organization_name: '',
+    name: '',
     contact_person: '',
     phone: '',
     email: '',
@@ -34,7 +34,7 @@ export default function NewLeadModal({ pipelineId, stages = [], defaultStageId, 
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.organization_name.trim()) { setError('Organization name is required'); return }
+    if (!form.name.trim()) { setError('Organization name is required'); return }
     setLoading(true)
     const { data, error: err } = await supabase
       .from('leads')
@@ -67,8 +67,8 @@ export default function NewLeadModal({ pipelineId, stages = [], defaultStageId, 
         <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Organization *</label>
-            <input className="input" value={form.organization_name}
-              onChange={e => set('organization_name', e.target.value)} placeholder="Acme School" autoFocus required />
+            <input className="input" value={form.name}
+              onChange={e => set('name', e.target.value)} placeholder="Acme School" autoFocus required />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

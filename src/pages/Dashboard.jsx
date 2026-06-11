@@ -37,7 +37,7 @@ export default function Dashboard() {
       const [{ data: leadsData }, { data: actData }, { data: profData }] = await Promise.all([
         supabase.from('leads').select('*'),
         supabase.from('activities')
-          .select('*, lead:leads(organization_name), user:profiles(full_name, email)')
+          .select('*, lead:leads(name), user:profiles(full_name, email)')
           .order('created_at', { ascending: false })
           .limit(20),
         supabase.from('profiles').select('id, full_name, email'),
@@ -225,7 +225,7 @@ export default function Dashboard() {
                         <span className="font-semibold">{act.user?.full_name ?? act.user?.email ?? 'Unknown'}</span>
                         {' — '}
                         <Link to={`/leads/${act.lead_id}`} className="text-brand-600 hover:underline">
-                          {act.lead?.organization_name ?? 'Lead'}
+                          {act.lead?.name ?? 'Lead'}
                         </Link>
                       </p>
                       {act.content && <p className="text-xs text-slate-500 mt-0.5 truncate">{act.content}</p>}

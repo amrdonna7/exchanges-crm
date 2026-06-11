@@ -35,7 +35,7 @@ export default function Search() {
     const { data } = await supabase
       .from('leads')
       .select('*')
-      .or(`organization_name.ilike.${term},contact_person.ilike.${term},email.ilike.${term},phone.ilike.${term},city.ilike.${term},notes.ilike.${term}`)
+      .or(`name.ilike.${term},contact_person.ilike.${term},email.ilike.${term},phone.ilike.${term},city.ilike.${term},notes.ilike.${term}`)
       .order('updated_at', { ascending: false })
       .limit(50)
     setResults(data ?? [])
@@ -111,7 +111,7 @@ export default function Search() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 group-hover:text-brand-700 transition-colors">
-                    {highlight(lead.organization_name, debouncedQuery)}
+                    {highlight(lead.name, debouncedQuery)}
                   </p>
                   <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-500">
                     {lead.contact_person && <span>{highlight(lead.contact_person, debouncedQuery)}</span>}

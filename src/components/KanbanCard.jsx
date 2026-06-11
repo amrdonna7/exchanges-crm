@@ -44,9 +44,9 @@ export function CardBody({ lead, assignedUser, dragging = false }) {
                     : 'border-slate-200 hover:border-slate-300 hover:shadow-md'}`}
     >
       <div className="flex items-start gap-2.5">
-        <LeadAvatar avatarUrl={lead.avatar_url} orgName={lead.organization_name} />
+        <LeadAvatar avatarUrl={lead.avatar_url} orgName={lead.name} />
         <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2 flex-1 min-w-0">
-          {lead.organization_name}
+          {lead.name}
         </p>
       </div>
 

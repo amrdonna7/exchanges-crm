@@ -176,7 +176,7 @@ export default function LeadDetail() {
     setLead(latest => {
       if (!latest) return latest
       const payload = {
-        organization_name:      latest.organization_name,
+        name:      latest.name,
         contact_person:         latest.contact_person,
         phone:                  latest.phone,
         email:                  latest.email,
@@ -280,7 +280,7 @@ export default function LeadDetail() {
     if (!lead) return
     const stageNameMap = Object.fromEntries(stages.map(s => [s.id, s.name]))
     const rows = [{
-      'Organization': lead.organization_name ?? '',
+      'Organization': lead.name ?? '',
       'Contact':      lead.contact_person ?? '',
       'City':         lead.city ?? '',
       'Phone':        lead.phone ?? '',
@@ -297,7 +297,7 @@ export default function LeadDetail() {
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Lead')
-    XLSX.writeFile(wb, `${lead.organization_name ?? 'lead'}.xlsx`)
+    XLSX.writeFile(wb, `${lead.name ?? 'lead'}.xlsx`)
   }
 
   if (loading) {
@@ -352,11 +352,11 @@ export default function LeadDetail() {
                 className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 focus:outline-none
                            ring-2 ring-slate-200 hover:ring-brand-400 transition-all relative">
                 {lead.avatar_url ? (
-                  <img src={lead.avatar_url} alt={lead.organization_name} className="w-full h-full object-cover" />
+                  <img src={lead.avatar_url} alt={lead.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                     <span className="text-slate-500 font-bold text-xl">
-                      {lead.organization_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? '?'}
+                      {lead.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? '?'}
                     </span>
                   </div>
                 )}
@@ -369,7 +369,7 @@ export default function LeadDetail() {
               </button>
             </div>
             <div className="flex-1 min-w-0 pt-1">
-              <EditableTitle value={lead.organization_name} onChange={v => update('organization_name', v)} />
+              <EditableTitle value={lead.name} onChange={v => update('name', v)} />
             </div>
           </div>
 
@@ -517,7 +517,7 @@ export default function LeadDetail() {
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Contact</h3>
             <div className="space-y-2.5">
               {[
-                { label: 'Organization', field: 'organization_name' },
+                { label: 'Organization', field: 'name' },
                 { label: 'Person',       field: 'contact_person' },
                 { label: 'City',         field: 'city' },
                 { label: 'Phone',        field: 'phone' },
