@@ -57,9 +57,9 @@ function FieldRow({ fieldKey, label, type, options, value, leadId, onUpdate }) {
     saveTimer.current = setTimeout(() => persist(val), 800)
   }
 
-  const inputClass = `w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-md
-                      px-2 py-1 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200
-                      placeholder:text-slate-300 transition-colors`
+  const inputClass = `w-full text-sm text-slate-700 bg-slate-50 border border-slate-300 rounded-md
+                      px-2 py-1.5 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200
+                      focus:bg-white placeholder:text-slate-400 transition-colors`
 
   let editor
   if (type === 'checkbox') {
