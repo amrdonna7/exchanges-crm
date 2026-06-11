@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors,
@@ -104,14 +105,27 @@ function AddFieldButton({ onAdd, pipelineId }) {
   const [name, setName]         = useState('')
   const [saving, setSaving]     = useState(false)
   const [createError, setCreateError] = useState(null)
-  const ref     = useRef(null)
+  const [popupPos, setPopupPos] = useState({ top: 0, right: 0 })
+  const btnRef   = useRef(null)
+  const popupRef = useRef(null)
   const inputRef = useRef(null)
 
-  useClickOutside(ref, () => { setStep(null); setChosen(null); setName(''); setCreateError(null) })
+  useClickOutside(popupRef, () => { setStep(null); setChosen(null); setName(''); setCreateError(null) })
+
+  function openPopup(s) {
+    if (!s) { setStep(null); return }
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) {
+      setPopupPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right })
+    }
+    setStep(s)
+  }
 
   function pickType(key) {
     setChosen(key)
     setName(FIELD_TYPE_MAP[key]?.label ?? '')
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) setPopupPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right })
     setStep('name')
     setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select() }, 40)
   }
@@ -122,7 +136,6 @@ function AddFieldButton({ onAdd, pipelineId }) {
     setCreateError(null)
 
     try {
-      // Use a fresh query for max sort_order — avoids stale builder chain issues
       const { data: maxRows } = await supabase
         .from('custom_field_definitions')
         .select('sort_order')
@@ -130,7 +143,6 @@ function AddFieldButton({ onAdd, pipelineId }) {
         .limit(1)
       const nextOrder = ((maxRows?.[0]?.sort_order) ?? -1) + 1
 
-      // Only include pipeline_id when it is a non-empty string (valid UUID)
       const pid = pipelineId && typeof pipelineId === 'string' ? pipelineId : null
       const insertPayload = { name: name.trim(), type: chosenType, sort_order: nextOrder }
       if (pid) insertPayload.pipeline_id = pid
@@ -161,73 +173,74 @@ function AddFieldButton({ onAdd, pipelineId }) {
     }
   }
 
+  const popup = step === 'type' ? (
+    <div
+      ref={popupRef}
+      style={{ position: 'fixed', top: popupPos.top, right: popupPos.right, zIndex: 9999 }}
+      className="w-[320px] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+    >
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 pt-3 pb-1">
+        Type de champ
+      </p>
+      <TypePickerGrid onPick={pickType} />
+    </div>
+  ) : step === 'name' && chosenType ? (
+    <div
+      ref={popupRef}
+      style={{ position: 'fixed', top: popupPos.top, right: popupPos.right, zIndex: 9999 }}
+      className="w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3"
+    >
+      <div className="flex items-center gap-2 mb-2.5">
+        <TypeIcon type={chosenType} />
+        <span className="text-xs font-semibold text-slate-600">Nom du champ</span>
+        <button onClick={() => openPopup('type')} className="ml-auto text-slate-400 hover:text-slate-600">
+          <X size={13} />
+        </button>
+      </div>
+      <input
+        ref={inputRef}
+        className="input text-sm py-1.5"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Ex : Budget, Décisionnaire…"
+        onKeyDown={e => {
+          if (e.key === 'Enter')  create()
+          if (e.key === 'Escape') openPopup('type')
+        }}
+      />
+      {createError && (
+        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2 mt-2">
+          {createError}
+        </p>
+      )}
+      <div className="flex gap-2 mt-2.5">
+        <button onClick={() => openPopup('type')} className="btn-secondary text-xs py-1.5 flex-1 justify-center">
+          ← Retour
+        </button>
+        <button
+          onClick={create}
+          disabled={!name.trim() || saving}
+          className="btn-primary text-xs py-1.5 flex-1 justify-center"
+        >
+          {saving ? '…' : 'Créer'}
+        </button>
+      </div>
+    </div>
+  ) : null
+
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={() => setStep(s => s ? null : 'type')}
+        ref={btnRef}
+        onClick={() => openPopup(step ? null : 'type')}
         className="flex items-center gap-1.5 text-xs font-semibold text-brand-600
                    hover:text-brand-700 hover:bg-brand-50 px-2.5 py-1 rounded-lg transition-colors"
       >
         <Plus size={13} />
         Ajouter un champ
       </button>
-
-      {/* Step 1 – type grid */}
-      {step === 'type' && (
-        <div className="absolute right-0 top-full mt-1.5 w-[320px] bg-white rounded-xl
-                        shadow-2xl border border-slate-200 z-50 overflow-hidden">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 pt-3 pb-1">
-            Type de champ
-          </p>
-          <TypePickerGrid onPick={pickType} />
-        </div>
-      )}
-
-      {/* Step 2 – name input */}
-      {step === 'name' && chosenType && (
-        <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl
-                        shadow-2xl border border-slate-200 z-50 p-3">
-          <div className="flex items-center gap-2 mb-2.5">
-            <TypeIcon type={chosenType} />
-            <span className="text-xs font-semibold text-slate-600">Nom du champ</span>
-            <button
-              onClick={() => setStep('type')}
-              className="ml-auto text-slate-400 hover:text-slate-600"
-            >
-              <X size={13} />
-            </button>
-          </div>
-          <input
-            ref={inputRef}
-            className="input text-sm py-1.5"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Ex : Budget, Décisionnaire…"
-            onKeyDown={e => {
-              if (e.key === 'Enter')  create()
-              if (e.key === 'Escape') setStep('type')
-            }}
-          />
-          {createError && (
-            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2 mt-2">
-              {createError}
-            </p>
-          )}
-          <div className="flex gap-2 mt-2.5">
-            <button onClick={() => setStep('type')} className="btn-secondary text-xs py-1.5 flex-1 justify-center">
-              ← Retour
-            </button>
-            <button
-              onClick={create}
-              disabled={!name.trim() || saving}
-              className="btn-primary text-xs py-1.5 flex-1 justify-center"
-            >
-              {saving ? '…' : 'Créer'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      {popup && createPortal(popup, document.body)}
+    </>
   )
 }
 
